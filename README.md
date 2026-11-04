@@ -2,11 +2,15 @@
 
 > Compile-time AI code generation for Java. Write the prompt, vibe the code.
 
-Annovibe is a Java library and annotation processor that generates method bodies and class definitions **at compile time** using modern LLMs (OpenRouter, OpenAI, Anthropic).
+<p align="center">
+  <img src="assets/demo.gif" alt="Annovibe Demo: From @vibe stub to compiled bytecode in seconds" width="100%"/>
+</p>
+
+Annovibe is a Java library and annotation processor that generates method bodies and class definitions **at compile time** using modern LLMs (OpenRouter, OpenAI, Anthropic, Ollama).
 
 ---
 
-## Showcase
+## The 10-Second Vibe Check ☕
 
 Why copy-paste the same 40-line StackOverflow snippet for the 50th time when you can just pass the vibe check at compile-time?
 

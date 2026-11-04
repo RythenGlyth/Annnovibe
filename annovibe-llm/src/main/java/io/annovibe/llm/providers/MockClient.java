@@ -59,7 +59,14 @@ public class MockClient implements LlmClient {
         }
         String lowerReq = req.toLowerCase();
 
-        // Default smart heuristic fallback if not explicitly registered:
+        if (lowerReq.contains("format raw bytes") || lowerReq.contains("formatbytes") || lowerReq.contains("format bytes")) {
+            return "{\n" +
+                   "    if (bytes < 1024) return bytes + \" B\";\n" +
+                   "    int exp = (int) (Math.log(bytes) / Math.log(1024));\n" +
+                   "    char pre = \"KMGTPE\".charAt(exp - 1);\n" +
+                   "    return String.format(java.util.Locale.US, \"%.1f %sB\", bytes / Math.pow(1024, exp), pre);\n" +
+                   "}";
+        }
         if (lowerReq.contains("simulate syntax error then self heal")) {
             return "{\n    this is intentional bad syntax !!!\n}";
         }

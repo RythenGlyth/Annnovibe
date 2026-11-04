@@ -190,12 +190,12 @@ public class LlmConfig {
     private static String getVal(String propKey, Properties props, String... envKeys) {
         String val = System.getProperty(propKey);
         if (val != null && !val.isBlank()) return val.trim();
-        if (props != null) {
-            val = props.getProperty(propKey);
-            if (val != null && !val.isBlank()) return val.trim();
-        }
         for (String envKey : envKeys) {
             val = System.getenv(envKey);
+            if (val != null && !val.isBlank()) return val.trim();
+        }
+        if (props != null) {
+            val = props.getProperty(propKey);
             if (val != null && !val.isBlank()) return val.trim();
         }
         return null;
