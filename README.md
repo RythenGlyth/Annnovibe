@@ -6,7 +6,7 @@ Annovibe is a Java library and annotation processor that generates method bodies
 
 ---
 
-## The 10-Second Vibe Check ☕
+## Showcase
 
 Why copy-paste the same 40-line StackOverflow snippet for the 50th time when you can just pass the vibe check at compile-time?
 
@@ -40,9 +40,11 @@ Hit `mvn compile` and `javac` synthesizes and compiles the algorithms directly i
 
 ## Features
 
-- **`@AI` & `@vibe` Annotations**: Annotate any method or class with natural language instructions.
+- **`@AI`, `@vibe`, & `@Vibe` Annotations**: Annotate any method or class with natural language instructions. Supports both lowercase `@vibe` and idiomatic PascalCase `@Vibe` (`import io.annovibe.annotations.Vibe`).
+- **1-Shot Self-Healing Compiler Loop**: If an LLM outputs code with a syntax glitch or missing token, Annovibe captures the exact `javac` diagnostic and prompts the model to self-heal in real time—recovering transparently before the compilation phase completes! Bounded by `annovibe.selfHealing.maxRetries` (default: 1) to prevent runaway token usage.
 - **Direct AST Injection**: Seamlessly generates and compiles code into `.class` bytecode during `javac` compilation.
 - **Out-of-the-Box LLM Providers**:
+  - **Local Ollama** (Zero-config! Auto-detected when running locally on `http://localhost:11434`)
   - **OpenRouter** (`https://openrouter.ai/api/v1/chat/completions`)
   - **OpenAI** (`https://api.openai.com/v1/chat/completions`)
   - **Anthropic** (`https://api.anthropic.com/v1/messages`)
@@ -50,6 +52,38 @@ Hit `mvn compile` and `javac` synthesizes and compiles the algorithms directly i
 - **Multi-Class Coherence**: Analyzes compilation units to share sibling class signatures and field definitions with the model, ensuring interdependent components fit together.
 - **Smart Compile-Time Caching**: Disk-backed SHA-256 caching under `.annovibe/cache` ensures builds are instantaneous once generated and prevents redundant token usage.
 - **Source Materialization**: Optional `-Aannovibe.materialize=true` mode writes the generated code directly into your `.java` files for version control.
+
+---
+
+## 🛡️ The 1-Shot Self-Healing Compiler
+
+LLMs are brilliant, but occasionally return a syntax oversight—a missing semicolon, an unmatched parenthesis, or an unexpected markdown artifact. In standard annotation processors, this immediately crashes your `mvn compile` build.
+
+**Annovibe fixes this with compile-time self-healing:**
+
+```mermaid
+sequenceDiagram
+    participant Javac as javac (AST Parser)
+    participant Annovibe as Annovibe Processor
+    participant LLM as LLM Provider (Ollama/Claude/GPT)
+
+    Annovibe->>LLM: Generate method body
+    LLM-->>Annovibe: Returns code
+    Annovibe->>Javac: Speculative AST Parse
+    alt Parse Success
+        Annovibe->>Javac: Commit AST injection
+    else Syntax / Parse Error Detected
+        Note over Annovibe: Intercept diagnostic before Javac logs poison the build
+        Annovibe->>LLM: Self-Heal Prompt (Code + javac Error Diagnostic)
+        LLM-->>Annovibe: Returns repaired code
+        Annovibe->>Javac: Re-parse & commit AST injection
+    end
+```
+
+### 🛑 Bounded Recursion & Token Safety
+To guarantee that persistent compiler errors never run away with your API budget or hang in infinite retry loops, self-healing is strictly bounded:
+- `annovibe.selfHealing.maxRetries=1` (default: 1 retry).
+- If the model cannot resolve the error within the configured retries, Annovibe fails fast, emitting the compiler diagnostic directly so you can adjust your prompt.
 
 ---
 
@@ -99,6 +133,12 @@ Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-comp
 
 ### 2. Provider API Keys & Defaults
 
+Annovibe supports both local models and cloud providers:
+
+#### Local Ollama (Zero Configuration)
+If you run Ollama locally (`ollama run llama3.2` or `codellama`), Annovibe **auto-detects** `http://localhost:11434` when no cloud API keys are present. Zero keys, zero tokens, 100% private.
+
+#### Cloud LLM Providers
 Set the environment variable for your preferred provider:
 ```bash
 # OpenRouter (default fallback)
@@ -116,7 +156,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ## Configuration Guide
 
 Annovibe is highly configurable. You can configure it via:
-1. **Annotation Attributes**: per-method or per-class (`@AI(model = "...", cache = false)`)
+1. **Annotation Attributes**: per-method or per-class (`@AI(model = "...", cache = false)` or `@Vibe(...)`)
 2. **Compiler Arguments**: via Maven/javac (`-Aannovibe.materialize=true`)
 3. **`annovibe.properties`**: file in your project root
 4. **System Properties**: passed to JVM (`-Dannovibe.cache=false`)
@@ -140,7 +180,7 @@ Calling an LLM API on every `mvn compile` or IDE auto-build would be slow, expen
 | Setting | Configuration | Description |
 | :--- | :--- | :--- |
 | **Disable globally** | `annovibe.cache=false` in `annovibe.properties` or `-Aannovibe.cache=false` | Forces live LLM generation on every compile |
-| **Bypass per method** | `@AI(value = "...", cache = false)` or `@vibe(cache = false)` | Disables caching only for this element |
+| **Bypass per method** | `@AI(value = "...", cache = false)` or `@vibe(cache = false)` or `@Vibe(cache = false)` | Disables caching only for this element |
 | **Custom directory** | `annovibe.cacheDir=/path/to/cache` | Changes cache location (defaults to `.annovibe/cache`) |
 | **Clear cache** | `rm -rf .annovibe/cache` | Invalidates all cached generations |
 
@@ -152,7 +192,7 @@ Annovibe offers two compilation workflows:
 
 #### 1. In-Memory AST Injection (Default)
 By default, Annovibe intercepts the compiler AST in-memory:
-- Your `.java` source files stay completely clean, containing only your `@AI` / `@vibe` annotations and stubs.
+- Your `.java` source files stay completely clean, containing only your `@AI` / `@vibe` / `@Vibe` annotations and stubs.
 - The compiled `.class` files contain the full, generated implementation bytecode.
 - Perfect for keeping codebase size small and focusing on business logic.
 
@@ -188,19 +228,27 @@ Materialization rewrites the `.java` files on disk, replacing the stub body with
 Create an `annovibe.properties` file in your project root to customize defaults:
 
 ```properties
-# LLM Provider: openrouter | openai | anthropic | mock (default: auto-detected from available API keys)
-annovibe.provider=openrouter
+# LLM Provider: ollama | openrouter | openai | anthropic | mock (default: auto-detected)
+annovibe.provider=ollama
 
-# Model name
-annovibe.model=anthropic/claude-3.5-sonnet
+# Model name (default: llama3.2 for ollama, claude-3-5-sonnet for anthropic, gpt-4o for openai)
+annovibe.model=llama3.2
 
-# Custom Base URL (e.g. for local Ollama / vLLM OpenAI-compatible endpoints)
-# annovibe.baseUrl=http://localhost:11434/v1/chat/completions
+# Local Ollama endpoint (default: http://localhost:11434)
+annovibe.ollama.url=http://localhost:11434
+
+# Custom Base URL (e.g. for custom vLLM / OpenAI-compatible endpoints)
+# annovibe.baseUrl=http://localhost:8000/v1/chat/completions
 
 # Provider API keys (alternative to environment variables)
 annovibe.openrouter.apiKey=sk-or-v1-...
 annovibe.openai.apiKey=sk-...
 annovibe.anthropic.apiKey=sk-ant-...
+
+# 1-Shot Self-Healing Compiler
+annovibe.selfHealing=true
+# Max self-healing retry iterations to protect token usage (default: 1)
+annovibe.selfHealing.maxRetries=1
 
 # Generation temperature (default: 0.2)
 annovibe.temperature=0.2

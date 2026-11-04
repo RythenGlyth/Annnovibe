@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 
 /**
  * Triggers compile-time generation of the method body or class contents using an LLM.
- * Alias for {@link AI} to embrace the vibe coding aesthetic.
+ * Embraces the vibe coding aesthetic with lowercase naming.
  */
 @Documented
 @Retention(RetentionPolicy.SOURCE)
@@ -20,12 +20,12 @@ public @interface vibe {
     String value();
 
     /**
-     * Optional model override (e.g. "gpt-4o", "claude-3-5-sonnet-20241022", "anthropic/claude-3.5-sonnet").
+     * Optional model override (e.g. "gpt-4o", "claude-3-5-sonnet-20241022", "qwen2.5-coder").
      */
     String model() default "";
 
     /**
-     * Optional provider override ("openrouter", "openai", "anthropic", "mock").
+     * Optional provider override ("openrouter", "openai", "anthropic", "ollama", "mock").
      */
     String provider() default "";
 

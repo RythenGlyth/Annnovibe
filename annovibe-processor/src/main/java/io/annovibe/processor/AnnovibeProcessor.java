@@ -18,7 +18,7 @@ import java.util.*;
  * Annotation processor for @AI and @vibe annotations.
  * Generates method bodies and class contents at compile-time via LLM and injects into javac AST.
  */
-@SupportedAnnotationTypes({"io.annovibe.AI", "io.annovibe.vibe"})
+@SupportedAnnotationTypes({"io.annovibe.AI", "io.annovibe.vibe", "io.annovibe.annotations.Vibe"})
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class AnnovibeProcessor extends AbstractProcessor {
 
@@ -71,6 +71,7 @@ public class AnnovibeProcessor extends AbstractProcessor {
         Set<Element> elements = new LinkedHashSet<>();
         elements.addAll(roundEnv.getElementsAnnotatedWith(AI.class));
         elements.addAll(roundEnv.getElementsAnnotatedWith(vibe.class));
+        elements.addAll(roundEnv.getElementsAnnotatedWith(io.annovibe.annotations.Vibe.class));
 
         if (elements.isEmpty()) {
             return false;
@@ -186,8 +187,53 @@ public class AnnovibeProcessor extends AbstractProcessor {
             cache.put(hash, generatedCode);
         }
 
-        // AST injection
-        astInjector.injectMethodBody(methodDecl, generatedCode);
+        // Attempt AST injection with bounded compile-time self-healing loop
+        int maxRetries = config.getMaxSelfHealingRetries();
+        int attempt = 0;
+        boolean injected = false;
+
+        while (!injected) {
+            try {
+                astInjector.injectMethodBody(methodDecl, generatedCode);
+                injected = true;
+            } catch (Throwable parseError) {
+                attempt++;
+                if (attempt > maxRetries) {
+                    throw new RuntimeException(
+                            "Syntax error in generated code. Self-healing aborted after reaching max depth (" +
+                                    maxRetries + " attempts). Last error: " + parseError.getMessage(),
+                            parseError
+                    );
+                }
+
+                processingEnv.getMessager().printMessage(
+                        Diagnostic.Kind.WARNING,
+                        "[Annovibe] ⚡ Syntax error in generated code (" + parseError.getMessage() +
+                                "). Triggering self-healing attempt " + attempt + "/" + maxRetries + " for " +
+                                className + "." + methodElem.getSimpleName() + "...",
+                        methodElem
+                );
+
+                String fixPrompt = PromptBuilder.buildSelfHealingMethodPrompt(
+                        vibe.prompt(),
+                        methodSig,
+                        generatedCode,
+                        parseError.getMessage()
+                );
+                String systemPrompt = PromptBuilder.buildSystemPrompt(vibe.systemPrompt(), config.getGlobalPrompt());
+                LlmClient client = LlmClientFactory.create(config);
+                String healedResponse = client.complete(systemPrompt, fixPrompt, 0.1);
+                generatedCode = CodeExtractor.normalizeMethodBody(healedResponse);
+            }
+        }
+
+        if (attempt > 0) {
+            cache.put(hash, generatedCode);
+            processingEnv.getMessager().printMessage(
+                    Diagnostic.Kind.NOTE,
+                    "[Annovibe] ✨ Self-healing succeeded on attempt " + attempt + "! Generated code corrected and compiled cleanly."
+            );
+        }
 
         // Optional source file materialization
         if (materialize) {
@@ -242,6 +288,51 @@ public class AnnovibeProcessor extends AbstractProcessor {
             cache.put(hash, generatedCode);
         }
 
-        astInjector.injectClassMembers(classDecl, generatedCode);
+        // Attempt class AST injection with bounded compile-time self-healing loop
+        int maxRetries = config.getMaxSelfHealingRetries();
+        int attempt = 0;
+        boolean injected = false;
+
+        while (!injected) {
+            try {
+                astInjector.injectClassMembers(classDecl, generatedCode);
+                injected = true;
+            } catch (Throwable parseError) {
+                attempt++;
+                if (attempt > maxRetries) {
+                    throw new RuntimeException(
+                            "Syntax error in generated class members. Self-healing aborted after reaching max depth (" +
+                                    maxRetries + " attempts). Last error: " + parseError.getMessage(),
+                            parseError
+                    );
+                }
+
+                processingEnv.getMessager().printMessage(
+                        Diagnostic.Kind.WARNING,
+                        "[Annovibe] ⚡ Syntax error in generated class members (" + parseError.getMessage() +
+                                "). Triggering self-healing attempt " + attempt + "/" + maxRetries + " for class " + className + "...",
+                        typeElem
+                );
+
+                String fixPrompt = PromptBuilder.buildSelfHealingClassPrompt(
+                        vibe.prompt(),
+                        classHeader,
+                        generatedCode,
+                        parseError.getMessage()
+                );
+                String systemPrompt = PromptBuilder.buildSystemPrompt(vibe.systemPrompt(), config.getGlobalPrompt());
+                LlmClient client = LlmClientFactory.create(config);
+                String healedResponse = client.complete(systemPrompt, fixPrompt, 0.1);
+                generatedCode = CodeExtractor.extractCode(healedResponse);
+            }
+        }
+
+        if (attempt > 0) {
+            cache.put(hash, generatedCode);
+            processingEnv.getMessager().printMessage(
+                    Diagnostic.Kind.NOTE,
+                    "[Annovibe] ✨ Self-healing succeeded on attempt " + attempt + "! Generated class members corrected and compiled cleanly."
+            );
+        }
     }
 }

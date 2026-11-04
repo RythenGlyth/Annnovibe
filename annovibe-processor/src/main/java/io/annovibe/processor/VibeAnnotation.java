@@ -39,6 +39,17 @@ public record VibeAnnotation(
                     v.systemPrompt()
             );
         }
+        io.annovibe.annotations.Vibe upperVibe = element.getAnnotation(io.annovibe.annotations.Vibe.class);
+        if (upperVibe != null) {
+            return new VibeAnnotation(
+                    upperVibe.value(),
+                    upperVibe.model(),
+                    upperVibe.provider(),
+                    upperVibe.temperature(),
+                    upperVibe.cache(),
+                    upperVibe.systemPrompt()
+            );
+        }
         return null;
     }
 }

@@ -7,6 +7,7 @@ public enum LlmProvider {
     OPENROUTER("openrouter"),
     OPENAI("openai"),
     ANTHROPIC("anthropic"),
+    OLLAMA("ollama"),
     MOCK("mock");
 
     private final String key;

@@ -12,6 +12,8 @@ public class VibeExecutionTest {
         assertEquals(120L, MathVibes.factorial(5));
         assertEquals(1L, MathVibes.factorial(0));
         assertEquals(42, MathVibes.add(40, 2));
+        assertEquals(25, MathVibes.max(10, 25));
+        assertEquals(777, MathVibes.selfHealDemo());
         assertTrue(MathVibes.isPalindrome("Race car"));
         assertFalse(MathVibes.isPalindrome("Annovibe"));
         assertEquals("ebivonnA", MathVibes.reverseString("Annovibe"));

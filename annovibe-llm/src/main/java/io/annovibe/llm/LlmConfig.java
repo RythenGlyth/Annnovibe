@@ -26,8 +26,9 @@ public class LlmConfig {
     private final boolean cacheEnabled;
     private final Path cacheDir;
     private final String globalPrompt;
+    private final int maxSelfHealingRetries;
 
-    public LlmConfig(LlmProvider provider, String apiKey, String model, String baseUrl, double temperature, boolean cacheEnabled, Path cacheDir, String globalPrompt) {
+    public LlmConfig(LlmProvider provider, String apiKey, String model, String baseUrl, double temperature, boolean cacheEnabled, Path cacheDir, String globalPrompt, int maxSelfHealingRetries) {
         this.provider = provider;
         this.apiKey = apiKey;
         this.model = model;
@@ -36,6 +37,7 @@ public class LlmConfig {
         this.cacheEnabled = cacheEnabled;
         this.cacheDir = cacheDir;
         this.globalPrompt = globalPrompt;
+        this.maxSelfHealingRetries = maxSelfHealingRetries;
     }
 
     public LlmProvider getProvider() {
@@ -66,6 +68,10 @@ public class LlmConfig {
         return cacheDir;
     }
 
+    public int getMaxSelfHealingRetries() {
+        return maxSelfHealingRetries;
+    }
+
     public String getGlobalPrompt() {
         return globalPrompt;
     }
@@ -83,13 +89,15 @@ public class LlmConfig {
             prov = LlmProvider.fromString(provStr);
         }
         if (prov == null) {
-            // Auto-detect based on available API keys
+            // Auto-detect based on available API keys or local running Ollama instance
             if (hasEnvOrProp("OPENROUTER_API_KEY", "annovibe.openrouter.apiKey", fileProps)) {
                 prov = LlmProvider.OPENROUTER;
             } else if (hasEnvOrProp("OPENAI_API_KEY", "annovibe.openai.apiKey", fileProps)) {
                 prov = LlmProvider.OPENAI;
             } else if (hasEnvOrProp("ANTHROPIC_API_KEY", "annovibe.anthropic.apiKey", fileProps)) {
                 prov = LlmProvider.ANTHROPIC;
+            } else if (hasEnvOrProp("OLLAMA_HOST", "annovibe.ollama.host", fileProps) || isOllamaRunning()) {
+                prov = LlmProvider.OLLAMA;
             } else {
                 prov = LlmProvider.OPENROUTER; // default fallback
             }
@@ -101,30 +109,33 @@ public class LlmConfig {
             case OPENROUTER -> key = getVal("annovibe.openrouter.apiKey", fileProps, "OPENROUTER_API_KEY", "ANNOVIBE_API_KEY");
             case OPENAI -> key = getVal("annovibe.openai.apiKey", fileProps, "OPENAI_API_KEY", "ANNOVIBE_API_KEY");
             case ANTHROPIC -> key = getVal("annovibe.anthropic.apiKey", fileProps, "ANTHROPIC_API_KEY", "ANNOVIBE_API_KEY");
+            case OLLAMA -> key = "ollama-local";
             case MOCK -> key = "mock-key";
         }
 
         // 3. Resolve Model
         String mdl = (annotationModel != null && !annotationModel.isBlank()) ? annotationModel : null;
         if (mdl == null) {
-            mdl = getVal("annovibe.model", fileProps, "ANNOVIBE_MODEL");
+            mdl = getVal("annovibe.model", fileProps, "ANNOVIBE_MODEL", "OLLAMA_MODEL");
         }
         if (mdl == null) {
             mdl = switch (prov) {
                 case OPENROUTER -> "anthropic/claude-3.5-sonnet";
                 case OPENAI -> "gpt-4o-mini";
                 case ANTHROPIC -> "claude-3-5-sonnet-20241022";
+                case OLLAMA -> "qwen2.5-coder:latest";
                 case MOCK -> "mock-model";
             };
         }
 
         // 4. Resolve Base URL
-        String url = getVal("annovibe.baseUrl", fileProps, "ANNOVIBE_BASE_URL");
+        String url = getVal("annovibe.baseUrl", fileProps, "ANNOVIBE_BASE_URL", "OLLAMA_HOST");
         if (url == null || url.isBlank()) {
             url = switch (prov) {
                 case OPENROUTER -> "https://openrouter.ai/api/v1/chat/completions";
                 case OPENAI -> "https://api.openai.com/v1/chat/completions";
                 case ANTHROPIC -> "https://api.anthropic.com/v1/messages";
+                case OLLAMA -> "http://localhost:11434/api/chat";
                 case MOCK -> "http://localhost:0/mock";
             };
         }
@@ -152,7 +163,16 @@ public class LlmConfig {
         // 8. Global Prompt
         String globalPrompt = getVal("annovibe.globalPrompt", fileProps, "ANNOVIBE_GLOBAL_PROMPT");
 
-        return new LlmConfig(prov, key, mdl, url, temp, cache, cacheDir, globalPrompt);
+        // 9. Max Self-Healing Retries (default: 1, 0 disables self-healing)
+        int maxRetries = 1;
+        String retriesStr = getVal("annovibe.selfHealing.maxRetries", fileProps, "ANNOVIBE_SELF_HEALING_MAX_RETRIES");
+        if (retriesStr != null) {
+            try {
+                maxRetries = Math.max(0, Integer.parseInt(retriesStr));
+            } catch (NumberFormatException ignored) {}
+        }
+
+        return new LlmConfig(prov, key, mdl, url, temp, cache, cacheDir, globalPrompt, maxRetries);
     }
 
     private static boolean hasEnvOrProp(String envName, String propName, Properties props) {
@@ -190,5 +210,22 @@ public class LlmConfig {
             } catch (Exception ignored) {}
         }
         return props;
+    }
+
+    private static boolean isOllamaRunning() {
+        try {
+            var client = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofMillis(300))
+                    .build();
+            var req = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("http://localhost:11434/api/version"))
+                    .timeout(java.time.Duration.ofMillis(300))
+                    .GET()
+                    .build();
+            var resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.discarding());
+            return resp.statusCode() == 200;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

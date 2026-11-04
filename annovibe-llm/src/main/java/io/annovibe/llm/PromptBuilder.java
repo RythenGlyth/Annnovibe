@@ -116,4 +116,38 @@ public class PromptBuilder {
         sb.append("Remember: Output ONLY the Java member declarations (fields, constructors, methods). Do NOT repeat the class header or outer class braces.");
         return sb.toString();
     }
+
+    /**
+     * Builds a 1-shot self-healing correction prompt when the previous generation failed compiler parsing.
+     */
+    public static String buildSelfHealingMethodPrompt(
+            String originalPrompt,
+            String methodSig,
+            String faultyCode,
+            String errorMessage) {
+
+        return "CRITICAL: The previous Java code you generated produced a compilation/syntax error!\n\n" +
+                "Target Method Signature:\n  " + methodSig + "\n\n" +
+                "Original Requirement:\n\"" + originalPrompt + "\"\n\n" +
+                "Faulty Code:\n" + faultyCode + "\n\n" +
+                "Compiler Error Message:\n" + errorMessage + "\n\n" +
+                "TASK: Correct the syntax/compile error and output ONLY the valid Java method block starting with '{' and ending with '}'. No markdown.";
+    }
+
+    /**
+     * Builds a 1-shot self-healing correction prompt for class members.
+     */
+    public static String buildSelfHealingClassPrompt(
+            String originalPrompt,
+            String classHeader,
+            String faultyCode,
+            String errorMessage) {
+
+        return "CRITICAL: The previous Java class members you generated produced a compilation/syntax error!\n\n" +
+                "Target Class Declaration:\n  " + classHeader + "\n\n" +
+                "Original Requirement:\n\"" + originalPrompt + "\"\n\n" +
+                "Faulty Code:\n" + faultyCode + "\n\n" +
+                "Compiler Error Message:\n" + errorMessage + "\n\n" +
+                "TASK: Correct the error and output ONLY the valid Java member declarations. No markdown.";
+    }
 }

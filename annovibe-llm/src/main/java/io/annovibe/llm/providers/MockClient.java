@@ -46,6 +46,11 @@ public class MockClient implements LlmClient {
             }
         }
 
+        // Check for 1-shot self-healing correction prompt
+        if (userPrompt.contains("CRITICAL: The previous Java code you generated produced a compilation/syntax error")) {
+            return "{\n    return 777;\n}";
+        }
+
         // Extract the specific requirement section to avoid false positives on sibling methods in context
         String req = userPrompt;
         int reqIdx = userPrompt.indexOf("Requirement / Vibe Prompt:");
@@ -55,6 +60,12 @@ public class MockClient implements LlmClient {
         String lowerReq = req.toLowerCase();
 
         // Default smart heuristic fallback if not explicitly registered:
+        if (lowerReq.contains("simulate syntax error then self heal")) {
+            return "{\n    this is intentional bad syntax !!!\n}";
+        }
+        if (lowerReq.contains("maximum of two") || lowerReq.contains("max of two")) {
+            return "{\n    return Math.max(a, b);\n}";
+        }
         if (lowerReq.contains("factorial")) {
             return "{\n    if (n <= 1) return 1L;\n    return n * factorial(n - 1);\n}";
         }

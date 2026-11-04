@@ -24,4 +24,14 @@ public class MathVibes {
     public static int add(int a, int b) {
         return 0; // Stub body
     }
+
+    @io.annovibe.annotations.Vibe(value = "return the maximum of two integers a and b", provider = "mock")
+    public static int max(int a, int b) {
+        return 0;
+    }
+
+    @vibe(value = "simulate syntax error then self heal to return 777", provider = "mock")
+    public static int selfHealDemo() {
+        return 0;
+    }
 }
