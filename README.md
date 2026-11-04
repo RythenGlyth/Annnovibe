@@ -96,14 +96,21 @@ To prevent infinite retry loops and unnecessary API usage, self-healing retries 
 
 ### Maven
 
-Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-compiler-plugin`:
+Add the JitPack repository and Annovibe dependencies to your `pom.xml`:
 
 ```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
 <dependencies>
     <dependency>
-        <groupId>io.annovibe</groupId>
+        <groupId>com.github.RythenGlyth.Annnovibe</groupId>
         <artifactId>annovibe-core</artifactId>
-        <version>1.0.0</version>
+        <version>v1.0.1</version>
     </dependency>
 </dependencies>
 
@@ -116,9 +123,9 @@ Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-comp
             <configuration>
                 <annotationProcessorPaths>
                     <path>
-                        <groupId>io.annovibe</groupId>
+                        <groupId>com.github.RythenGlyth.Annnovibe</groupId>
                         <artifactId>annovibe-processor</artifactId>
-                        <version>1.0.0</version>
+                        <version>v1.0.1</version>
                     </path>
                 </annotationProcessorPaths>
                 <fork>true</fork>
@@ -139,9 +146,14 @@ Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-comp
 ### Gradle (Kotlin DSL)
 
 ```kotlin
+repositories {
+    mavenCentral()
+    maven { url = uri("https://jitpack.io") }
+}
+
 dependencies {
-    implementation("io.annovibe:annovibe-core:1.0.0")
-    annotationProcessor("io.annovibe:annovibe-processor:1.0.0")
+    implementation("com.github.RythenGlyth.Annnovibe:annovibe-core:v1.0.1")
+    annotationProcessor("com.github.RythenGlyth.Annnovibe:annovibe-processor:v1.0.1")
 }
 
 tasks.withType<JavaCompile> {

@@ -6,7 +6,7 @@
 
     <groupId>io.annovibe</groupId>
     <artifactId>annovibe-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1</version>
     <packaging>pom</packaging>
     <name>Annovibe :: Parent</name>
     <description>Compile-time AI code generation framework for Java</description>
