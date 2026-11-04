@@ -97,11 +97,11 @@ Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-comp
 </build>
 ```
 
-### 2. Configure Your API Key
+### 2. Provider API Keys & Defaults
 
 Set the environment variable for your preferred provider:
 ```bash
-# OpenRouter (default)
+# OpenRouter (default fallback)
 export OPENROUTER_API_KEY="sk-or-v1-..."
 
 # Or OpenAI
@@ -111,15 +111,112 @@ export OPENAI_API_KEY="sk-..."
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-Or configure via `annovibe.properties` in your project root:
-```properties
-annovibe.provider=openrouter
-annovibe.model=anthropic/claude-3.5-sonnet
-annovibe.openrouter.apiKey=sk-or-v1-...
-annovibe.cache=true
-```
+---
+
+## Configuration Guide
+
+Annovibe is highly configurable. You can configure it via:
+1. **Annotation Attributes**: per-method or per-class (`@AI(model = "...", cache = false)`)
+2. **Compiler Arguments**: via Maven/javac (`-Aannovibe.materialize=true`)
+3. **`annovibe.properties`**: file in your project root
+4. **System Properties**: passed to JVM (`-Dannovibe.cache=false`)
+5. **Environment Variables**: (`OPENROUTER_API_KEY`, etc.)
+
+### Precedence Order
+> **Annotation > Compiler Option (-A) > annovibe.properties > System Property (-D) > Environment Variable**
 
 ---
+
+### Compile-Time Caching
+
+Calling an LLM API on every `mvn compile` or IDE auto-build would be slow, expensive, and subject to rate limits. Annovibe includes an automatic **disk-backed cryptographic cache**:
+
+- **How it Works**: Annovibe computes a SHA-256 hash of `provider + model + prompt + method signature + sibling context`. The generated Java snippet is saved as `.annovibe/cache/<hash>.java`.
+- **Instant Re-compilation**: If the prompt and method signature haven't changed, compilation takes **< 5ms** with zero API calls.
+- **Offline / CI Friendly**: You can commit the `.annovibe/cache` directory to git if you want CI builds to run without network access or API tokens!
+
+#### Caching Options
+
+| Setting | Configuration | Description |
+| :--- | :--- | :--- |
+| **Disable globally** | `annovibe.cache=false` in `annovibe.properties` or `-Aannovibe.cache=false` | Forces live LLM generation on every compile |
+| **Bypass per method** | `@AI(value = "...", cache = false)` or `@vibe(cache = false)` | Disables caching only for this element |
+| **Custom directory** | `annovibe.cacheDir=/path/to/cache` | Changes cache location (defaults to `.annovibe/cache`) |
+| **Clear cache** | `rm -rf .annovibe/cache` | Invalidates all cached generations |
+
+---
+
+### In-Memory AST Injection vs. Source Materialization
+
+Annovibe offers two compilation workflows:
+
+#### 1. In-Memory AST Injection (Default)
+By default, Annovibe intercepts the compiler AST in-memory:
+- Your `.java` source files stay completely clean, containing only your `@AI` / `@vibe` annotations and stubs.
+- The compiled `.class` files contain the full, generated implementation bytecode.
+- Perfect for keeping codebase size small and focusing on business logic.
+
+#### 2. Source Materialization Mode (`-Aannovibe.materialize=true`)
+Materialization rewrites the `.java` files on disk, replacing the stub body with the generated implementation:
+- **Why use it**:
+  - Review generated code directly in git diffs before committing.
+  - Set breakpoints and step through the generated code in standard IDE debuggers.
+  - Allow team members or CI environments without LLM API keys to build the project.
+- **How to enable**:
+  Add `-Aannovibe.materialize=true` to the `compilerArgs` in `pom.xml`:
+  ```xml
+  <compilerArgs>
+      <arg>-Aannovibe.materialize=true</arg>
+      <!-- Javac internal exports -->
+      <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+      <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+      <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+      <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+      <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+      <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+  </compilerArgs>
+  ```
+  Or invoke on demand from the CLI:
+  ```bash
+  mvn compile -DcompilerArgs="-Aannovibe.materialize=true"
+  ```
+
+---
+
+### Full `annovibe.properties` Reference
+
+Create an `annovibe.properties` file in your project root to customize defaults:
+
+```properties
+# LLM Provider: openrouter | openai | anthropic | mock (default: auto-detected from available API keys)
+annovibe.provider=openrouter
+
+# Model name
+annovibe.model=anthropic/claude-3.5-sonnet
+
+# Custom Base URL (e.g. for local Ollama / vLLM OpenAI-compatible endpoints)
+# annovibe.baseUrl=http://localhost:11434/v1/chat/completions
+
+# Provider API keys (alternative to environment variables)
+annovibe.openrouter.apiKey=sk-or-v1-...
+annovibe.openai.apiKey=sk-...
+annovibe.anthropic.apiKey=sk-ant-...
+
+# Generation temperature (default: 0.2)
+annovibe.temperature=0.2
+
+# Caching: true | false (default: true)
+annovibe.cache=true
+
+# Cache storage directory (default: .annovibe/cache)
+annovibe.cacheDir=.annovibe/cache
+
+# Project-wide global prompt / architectural rules injected into all generations
+annovibe.globalPrompt=Prefer immutability. Use java.time for dates. Use Optional for nullable returns.
+
+# Materialize generated code to source files (default: false)
+annovibe.materialize=false
+```
 
 ## Code Examples
 
