@@ -31,7 +31,7 @@ public class AstInjector {
         }
 
         com.sun.tools.javac.util.Log log = com.sun.tools.javac.util.Log.instance(context);
-        com.sun.tools.javac.util.Log.DeferredDiagnosticHandler handler = log.new DeferredDiagnosticHandler();
+        com.sun.tools.javac.util.Log.DeferredDiagnosticHandler handler = createDeferredHandler(log);
         int oldErrors = log.nerrors;
 
         try {
@@ -74,7 +74,7 @@ public class AstInjector {
     public java.util.List<JCTree> parseClassMembers(String classMembersCode) {
         String dummyClass = "class Dummy {\n" + classMembersCode + "\n}";
         com.sun.tools.javac.util.Log log = com.sun.tools.javac.util.Log.instance(context);
-        com.sun.tools.javac.util.Log.DeferredDiagnosticHandler handler = log.new DeferredDiagnosticHandler();
+        com.sun.tools.javac.util.Log.DeferredDiagnosticHandler handler = createDeferredHandler(log);
         int oldErrors = log.nerrors;
 
         try {
@@ -128,6 +128,27 @@ public class AstInjector {
                 if (alreadyHasInit) continue;
             }
             classDecl.defs = classDecl.defs.append(member);
+        }
+    }
+
+    private static com.sun.tools.javac.util.Log.DeferredDiagnosticHandler createDeferredHandler(com.sun.tools.javac.util.Log log) {
+        try {
+            var ctor = com.sun.tools.javac.util.Log.DeferredDiagnosticHandler.class.getConstructor(com.sun.tools.javac.util.Log.class);
+            return ctor.newInstance(log);
+        } catch (Exception e) {
+            try {
+                var ctor = com.sun.tools.javac.util.Log.DeferredDiagnosticHandler.class.getDeclaredConstructor(com.sun.tools.javac.util.Log.class);
+                ctor.setAccessible(true);
+                return ctor.newInstance(log);
+            } catch (Exception ex) {
+                try {
+                    var ctor = com.sun.tools.javac.util.Log.DeferredDiagnosticHandler.class.getDeclaredConstructor();
+                    ctor.setAccessible(true);
+                    return ctor.newInstance();
+                } catch (Exception ex2) {
+                    throw new RuntimeException("Failed to instantiate DeferredDiagnosticHandler across JDK versions", ex2);
+                }
+            }
         }
     }
 }

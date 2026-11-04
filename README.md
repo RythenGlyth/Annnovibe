@@ -10,9 +10,9 @@ Annovibe is a Java library and annotation processor that generates method bodies
 
 ---
 
-## The 10-Second Vibe Check ☕
+## Quick Overview ⚡
 
-Why copy-paste the same 40-line StackOverflow snippet for the 50th time when you can just pass the vibe check at compile-time?
+Why copy-paste the same 40-line StackOverflow snippet for the 50th time when you can let an LLM synthesize it directly at compile-time?
 
 ```java
 import io.annovibe.AI;
@@ -91,9 +91,9 @@ To guarantee that persistent compiler errors never run away with your API budget
 
 ---
 
-## Quick Start
+## Installation
 
-### 1. Maven Dependency
+### Maven
 
 Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-compiler-plugin`:
 
@@ -102,7 +102,7 @@ Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-comp
     <dependency>
         <groupId>io.annovibe</groupId>
         <artifactId>annovibe-core</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </dependency>
 </dependencies>
 
@@ -117,7 +117,7 @@ Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-comp
                     <path>
                         <groupId>io.annovibe</groupId>
                         <artifactId>annovibe-processor</artifactId>
-                        <version>1.0.0-SNAPSHOT</version>
+                        <version>1.0.0</version>
                     </path>
                 </annotationProcessorPaths>
                 <fork>true</fork>
@@ -135,7 +135,40 @@ Add `annovibe-core` as a dependency and `annovibe-processor` to your `maven-comp
 </build>
 ```
 
-### 2. Provider API Keys & Defaults
+### Gradle (Kotlin DSL)
+
+```kotlin
+dependencies {
+    implementation("io.annovibe:annovibe-core:1.0.0")
+    annotationProcessor("io.annovibe:annovibe-processor:1.0.0")
+}
+
+tasks.withType<JavaCompile> {
+    options.isFork = true
+    options.forkOptions.jvmArgs?.addAll(listOf(
+        "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+        "--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED"
+    ))
+}
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/RythenGlyth/Annnovibe.git
+cd Annnovibe
+mvn clean install
+```
+
+---
+
+## Quick Start Guide
+
+### Provider Setup & API Keys
 
 Annovibe supports both local models and cloud providers:
 
