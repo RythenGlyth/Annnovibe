@@ -6,11 +6,11 @@
   <img src="assets/demo.gif" alt="Annovibe Demo: From @vibe stub to compiled bytecode in seconds" width="100%"/>
 </p>
 
-Annovibe is a Java library and annotation processor that generates method bodies and class definitions **at compile time** using modern LLMs (OpenRouter, OpenAI, Anthropic, Ollama).
+Annovibe is a Java library and annotation processor that generates method bodies and class definitions at compile time using LLMs (OpenRouter, OpenAI, Anthropic, Ollama).
 
 ---
 
-## Quick Overview ⚡
+## Quick Overview
 
 Why copy-paste the same 40-line StackOverflow snippet for the 50th time when you can let an LLM synthesize it directly at compile-time?
 
@@ -38,32 +38,32 @@ public class SanityUtils {
 }
 ```
 
-Hit `mvn compile` and `javac` synthesizes and compiles the algorithms directly into `.class` bytecode. No runtime AI calls, zero latency, just clean compiled Java.
+Run `mvn compile` and `javac` compiles the generated logic directly into `.class` bytecode. There are no runtime AI calls or added latency.
 
 ---
 
 ## Features
 
-- **`@AI`, `@vibe`, & `@Vibe` Annotations**: Annotate any method or class with natural language instructions. Supports both lowercase `@vibe` and idiomatic PascalCase `@Vibe` (`import io.annovibe.annotations.Vibe`).
-- **1-Shot Self-Healing Compiler Loop**: If an LLM outputs code with a syntax glitch or missing token, Annovibe captures the exact `javac` diagnostic and prompts the model to self-heal in real time—recovering transparently before the compilation phase completes! Bounded by `annovibe.selfHealing.maxRetries` (default: 1) to prevent runaway token usage.
-- **Direct AST Injection**: Seamlessly generates and compiles code into `.class` bytecode during `javac` compilation.
-- **Out-of-the-Box LLM Providers**:
-  - **Local Ollama** (Zero-config! Auto-detected when running locally on `http://localhost:11434`)
+- **`@AI`, `@vibe`, and `@Vibe` Annotations**: Annotate any method or class with natural language instructions. Supports both lowercase `@vibe` and PascalCase `@Vibe` (`import io.annovibe.annotations.Vibe`).
+- **1-Shot Self-Healing Compiler Loop**: If an LLM returns code with a syntax error or missing token, Annovibe captures the `javac` diagnostic and prompts the model to repair the code in real time during compilation. Bounded by `annovibe.selfHealing.maxRetries` (default: 1) to prevent runaway token usage.
+- **Direct AST Injection**: Generates and injects code into `.class` bytecode during `javac` compilation without altering source files.
+- **Supported LLM Providers**:
+  - **Local Ollama** (auto-detected when running locally on `http://localhost:11434`)
   - **OpenRouter** (`https://openrouter.ai/api/v1/chat/completions`)
   - **OpenAI** (`https://api.openai.com/v1/chat/completions`)
   - **Anthropic** (`https://api.anthropic.com/v1/messages`)
   - **Mock**: Deterministic local testing mode
-- **Multi-Class Coherence**: Analyzes compilation units to share sibling class signatures and field definitions with the model, ensuring interdependent components fit together.
-- **Smart Compile-Time Caching**: Disk-backed SHA-256 caching under `.annovibe/cache` ensures builds are instantaneous once generated and prevents redundant token usage.
-- **Source Materialization**: Optional `-Aannovibe.materialize=true` mode writes the generated code directly into your `.java` files for version control.
+- **Multi-Class Coherence**: Analyzes compilation units to pass sibling class signatures and field definitions to the model, so interdependent components match.
+- **Compile-Time Caching**: Disk-backed SHA-256 caching under `.annovibe/cache` avoids repeated API calls and speeds up rebuilds.
+- **Source Materialization**: Optional `-Aannovibe.materialize=true` mode writes generated code directly into your `.java` files for version control.
 
 ---
 
-## 🛡️ The 1-Shot Self-Healing Compiler
+## 1-Shot Self-Healing Compiler
 
-LLMs are brilliant, but occasionally return a syntax oversight—a missing semicolon, an unmatched parenthesis, or an unexpected markdown artifact. In standard annotation processors, this immediately crashes your `mvn compile` build.
+LLMs occasionally return syntax errors such as a missing semicolon, unmatched parenthesis, or stray markdown block. In standard annotation processors, this immediately fails the `mvn compile` build.
 
-**Annovibe fixes this with compile-time self-healing:**
+Annovibe catches these diagnostics and attempts to repair the code during compilation:
 
 ```mermaid
 sequenceDiagram
@@ -84,10 +84,11 @@ sequenceDiagram
     end
 ```
 
-### 🛑 Bounded Recursion & Token Safety
-To guarantee that persistent compiler errors never run away with your API budget or hang in infinite retry loops, self-healing is strictly bounded:
-- `annovibe.selfHealing.maxRetries=1` (default: 1 retry).
-- If the model cannot resolve the error within the configured retries, Annovibe fails fast, emitting the compiler diagnostic directly so you can adjust your prompt.
+### Bounded Recursion and Token Safety
+
+To prevent infinite retry loops and unnecessary API usage, self-healing retries are bounded:
+- `annovibe.selfHealing.maxRetries=1` sets the maximum retry limit (default: 1).
+- If the model cannot resolve the error within the configured retries, Annovibe fails fast and prints the compiler diagnostic directly so you can adjust your prompt.
 
 ---
 
@@ -168,15 +169,15 @@ mvn clean install
 
 ## Quick Start Guide
 
-### Provider Setup & API Keys
+### Provider Setup and API Keys
 
-Annovibe supports both local models and cloud providers:
+Annovibe supports local models and cloud providers:
 
 #### Local Ollama (Zero Configuration)
-If you run Ollama locally (`ollama run llama3.2` or `codellama`), Annovibe **auto-detects** `http://localhost:11434` when no cloud API keys are present. Zero keys, zero tokens, 100% private.
+If you run Ollama locally (`ollama run llama3.2` or `codellama`), Annovibe automatically connects to `http://localhost:11434` when no cloud API keys are present. No API keys or remote network requests are required.
 
 #### Cloud LLM Providers
-Set the environment variable for your preferred provider:
+Set the environment variable for your chosen provider:
 ```bash
 # OpenRouter (default fallback)
 export OPENROUTER_API_KEY="sk-or-v1-..."
@@ -192,25 +193,23 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 ## Configuration Guide
 
-Annovibe is highly configurable. You can configure it via:
-1. **Annotation Attributes**: per-method or per-class (`@AI(model = "...", cache = false)` or `@Vibe(...)`)
-2. **Compiler Arguments**: via Maven/javac (`-Aannovibe.materialize=true`)
-3. **`annovibe.properties`**: file in your project root
-4. **System Properties**: passed to JVM (`-Dannovibe.cache=false`)
-5. **Environment Variables**: (`OPENROUTER_API_KEY`, etc.)
+Annovibe supports configuration at several levels, resolved in order of precedence:
 
-### Precedence Order
-> **Annotation > Compiler Option (-A) > annovibe.properties > System Property (-D) > Environment Variable**
+1. **Annotation attributes**: per-method or per-class (`@AI(model = "...", cache = false)` or `@Vibe(...)`)
+2. **Compiler arguments (`-A`)**: passed to Maven or javac (`-Aannovibe.materialize=true`)
+3. **`annovibe.properties`**: file in the project root
+4. **System properties (`-D`)**: passed to the JVM (`-Dannovibe.cache=false`)
+5. **Environment variables**: (`OPENROUTER_API_KEY`, etc.)
 
 ---
 
 ### Compile-Time Caching
 
-Calling an LLM API on every `mvn compile` or IDE auto-build would be slow, expensive, and subject to rate limits. Annovibe includes an automatic **disk-backed cryptographic cache**:
+To avoid repeated API calls and latency during builds, Annovibe caches generated code on disk under `.annovibe/cache`:
 
-- **How it Works**: Annovibe computes a SHA-256 hash of `provider + model + prompt + method signature + sibling context`. The generated Java snippet is saved as `.annovibe/cache/<hash>.java`.
-- **Instant Re-compilation**: If the prompt and method signature haven't changed, compilation takes **< 5ms** with zero API calls.
-- **Offline / CI Friendly**: You can commit the `.annovibe/cache` directory to git if you want CI builds to run without network access or API tokens!
+- **Cache keys**: Annovibe computes a SHA-256 hash of `provider + model + prompt + method signature + sibling context` and stores the generated Java snippet as `.annovibe/cache/<hash>.java`.
+- **Fast rebuilds**: If the prompt and method signature are unchanged, compilation takes under 5ms without making API calls.
+- **Offline and CI builds**: You can commit the `.annovibe/cache` directory to git so CI pipelines or offline environments compile without network access or API tokens.
 
 #### Caching Options
 
@@ -225,19 +224,19 @@ Calling an LLM API on every `mvn compile` or IDE auto-build would be slow, expen
 
 ### In-Memory AST Injection vs. Source Materialization
 
-Annovibe offers two compilation workflows:
+Annovibe supports two compilation modes:
 
 #### 1. In-Memory AST Injection (Default)
-By default, Annovibe intercepts the compiler AST in-memory:
-- Your `.java` source files stay completely clean, containing only your `@AI` / `@vibe` / `@Vibe` annotations and stubs.
-- The compiled `.class` files contain the full, generated implementation bytecode.
-- Perfect for keeping codebase size small and focusing on business logic.
+By default, Annovibe modifies the compiler AST in memory:
+- Source `.java` files remain unchanged, containing only your `@AI`, `@vibe`, or `@Vibe` annotations and stubs.
+- Compiled `.class` files contain the full generated implementation bytecode.
+- Keeps source files concise while delegating boilerplate implementation to compile time.
 
 #### 2. Source Materialization Mode (`-Aannovibe.materialize=true`)
-Materialization rewrites the `.java` files on disk, replacing the stub body with the generated implementation:
-- **Why use it**:
-  - Review generated code directly in git diffs before committing.
-  - Set breakpoints and step through the generated code in standard IDE debuggers.
+Materialization writes the generated implementations directly into your `.java` files on disk:
+- **Use cases**:
+  - Review generated code in git diffs before committing.
+  - Set breakpoints and step through generated code in standard IDE debuggers.
   - Allow team members or CI environments without LLM API keys to build the project.
 - **How to enable**:
   Add `-Aannovibe.materialize=true` to the `compilerArgs` in `pom.xml`:
