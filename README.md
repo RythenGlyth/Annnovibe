@@ -110,7 +110,7 @@ Add the JitPack repository and Annovibe dependencies to your `pom.xml`:
     <dependency>
         <groupId>com.github.RythenGlyth.Annnovibe</groupId>
         <artifactId>annovibe-core</artifactId>
-        <version>v1.0.1</version>
+        <version>v1.0.2</version>
     </dependency>
 </dependencies>
 
@@ -125,7 +125,7 @@ Add the JitPack repository and Annovibe dependencies to your `pom.xml`:
                     <path>
                         <groupId>com.github.RythenGlyth.Annnovibe</groupId>
                         <artifactId>annovibe-processor</artifactId>
-                        <version>v1.0.1</version>
+                        <version>v1.0.2</version>
                     </path>
                 </annotationProcessorPaths>
                 <fork>true</fork>
@@ -152,8 +152,8 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.RythenGlyth.Annnovibe:annovibe-core:v1.0.1")
-    annotationProcessor("com.github.RythenGlyth.Annnovibe:annovibe-processor:v1.0.1")
+    implementation("com.github.RythenGlyth.Annnovibe:annovibe-core:v1.0.2")
+    annotationProcessor("com.github.RythenGlyth.Annnovibe:annovibe-processor:v1.0.2")
 }
 
 tasks.withType<JavaCompile> {
